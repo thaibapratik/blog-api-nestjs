@@ -4,14 +4,31 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
   timestamps: true,
 })
 export class Blog {
-  @Prop()
+  @Prop({ required: true, index: 'text' })
   title: string;
 
-  @Prop()
-  authur: string;
+  @Prop({ required: true, index: 'text' })
+  author: string;
 
-  @Prop()
+  @Prop({ required: true, index: 'text' })
   content: string;
 }
 
-export const BlogScehma = SchemaFactory.createForClass(Blog);
+export const BlogSchema = SchemaFactory.createForClass(Blog);
+
+// Create a compound text index with weights
+BlogSchema.index(
+  {
+    title: 'text',
+    content: 'text',
+    author: 'text',
+  },
+  {
+    weights: {
+      title: 10,
+      author: 5,
+      content: 1,
+    },
+    name: 'BlogSearchIndex',
+  },
+);

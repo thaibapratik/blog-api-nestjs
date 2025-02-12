@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Param } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 import { Blog } from './schemas/blogs.schema';
@@ -12,12 +12,45 @@ export class BlogsService {
     private blogModel: mongoose.Model<Blog>,
   ) {}
 
-  async findAll() {
-    const blogs = await this.blogModel.find();
-    if (!blogs) {
+  async findAll(
+    sortBy: 'createdAt' | 'updatedAt' = 'createdAt',
+    order: 'asc' | 'desc' = 'desc',
+    search?: string,
+    page: number = 1,
+  ) {
+    const limit = 3;
+    const sortOrder = order === 'asc' ? 1 : -1;
+
+    let query = this.blogModel.find();
+
+    const skip = (page - 1) * limit;
+
+    if (search) {
+      query = query.find({
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { content: { $regex: search, $options: 'i' } },
+          { author: { $regex: search, $options: 'i' } },
+        ],
+      });
+    }
+    const blogs = await query
+      .sort({ [sortBy]: sortOrder })
+      .skip(skip)
+      .limit(limit);
+
+    const totalBlogs = await this.blogModel.countDocuments();
+
+    if (!blogs || blogs.length === 0) {
       throw new NotFoundException('No blogs found');
     }
-    return blogs;
+
+    return {
+      totalBlogs,
+      totalPages: Math.ceil(totalBlogs / limit),
+      currentPage: page,
+      blogs,
+    };
   }
 
   async findOne(id: mongoose.Types.ObjectId) {
